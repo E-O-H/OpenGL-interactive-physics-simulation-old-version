@@ -2,6 +2,9 @@
 
 // OpenGL Helpers to reduce the clutter
 #include "Helpers.h"
+#include "OBJ_Loader.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 #include <iostream>
 #include <fstream>
 
@@ -11,8 +14,12 @@
 // Timer
 #include <chrono>
 
-#define DEFAULT_COLOR_R 0.0
-#define DEFAULT_COLOR_G 0.5
+#define BACKGROUND_R 0.0
+#define BACKGROUND_G 0.0
+#define BACKGROUND_B 0.0
+
+#define DEFAULT_COLOR_R 1.0
+#define DEFAULT_COLOR_G 1.0
 #define DEFAULT_COLOR_B 1.0
 
 #define AMBIENT_COEF    0.3
@@ -30,19 +37,22 @@ const string dataPath = "./data/";  // path for data files
 // VertexBufferObject wrappers
 vector<VertexBufferObject> VBO;     // vertex coords
 vector<VertexBufferObject> VBO_N;   // vertex normals
+vector<VertexBufferObject> VBO_T;   // vertex texture coords
 // ElementBufferObject wrappers
 vector<ElementBufferObject> EBO;
 
 vector<Mesh> meshes;          // list to store all model meshes
 vector<Object> objects;       // list to store all objects in the scene
 
+vector<unsigned> textures;    // list to store texture IDs
+
 Camera camera;
 
 int highlighted = NO_HIGHLIGHTED;
 bool blinkHighlight = true;
 
-// Function to read a mesh data file
-void readMesh(string filename, vector<Mesh>& meshes) {
+// Function to read a ".off" mesh data file
+int readMesh(string filename, vector<Mesh>& meshes) {
     try {
         std::ifstream meshFile((dataPath + filename).c_str());
         if (!meshFile.good()) {
@@ -112,8 +122,129 @@ void readMesh(string filename, vector<Mesh>& meshes) {
         mesh.barycenterZ = sumZ / nV;
 
         meshes.push_back(mesh);
+        return 0;
     } catch (...) {
         std::cerr << "Error opening file." << std::endl;
+        return -1;
+    }
+}
+
+// read a .obj file
+int readObj(string objFilename, vector<Mesh>& meshes) {
+    try {
+        objl::Loader loader;
+        std::ifstream testFile((dataPath + objFilename).c_str());
+        if (testFile.good()) {     
+            loader.LoadFile((char*)(dataPath + objFilename).c_str());
+        } else {
+            testFile.close();
+            testFile.open(("../" + dataPath + objFilename).c_str());
+            if (!testFile.good()) throw 1;
+            loader.LoadFile((char*)("../" + dataPath + objFilename).c_str());
+        }
+        testFile.close();
+
+
+        unsigned int nV, nF;
+        nV = loader.LoadedVertices.size();
+        nF = loader.LoadedMeshes[0].Indices.size() / 3;
+        Mesh mesh;
+        // read vertices
+        for (unsigned i = 0; i < nV; ++i) {
+            Point vertex;
+            vertex.x = loader.LoadedVertices[i].Position.X;
+            vertex.y = loader.LoadedVertices[i].Position.Y;
+            vertex.z = loader.LoadedVertices[i].Position.Z;
+            mesh.V.push_back(vertex);
+        }
+        // read faces
+        for (unsigned i = 0; i < nF; ++i) {
+            Face face;
+            face.a = loader.LoadedMeshes[0].Indices[i * 3];
+            face.b = loader.LoadedMeshes[0].Indices[i * 3 + 1];
+            face.c = loader.LoadedMeshes[0].Indices[i * 3 + 2];
+            mesh.F.push_back(face);
+        }
+        // read vertex normals
+        for (unsigned i = 0; i < nV; ++i) {
+            Point normal;
+            normal.x = loader.LoadedVertices[i].Normal.X;
+            normal.y = loader.LoadedVertices[i].Normal.Y;
+            normal.z = loader.LoadedVertices[i].Normal.Z;
+            mesh.VN.push_back(normal);
+        }
+        // read vertex texture coordinates
+        for (unsigned i = 0; i < nV; ++i) {
+            Point2d texCoords;
+            texCoords.u = loader.LoadedVertices[i].TextureCoordinate.X;
+            texCoords.v = loader.LoadedVertices[i].TextureCoordinate.Y;
+            mesh.texCorrds.push_back(texCoords);
+        }
+        // calculate barycenter
+        float sumX = 0, sumY = 0, sumZ = 0;
+        for (unsigned i = 0; i < nV; ++i) {
+            sumX += mesh.V[i].x;
+            sumY += mesh.V[i].y;
+            sumZ += mesh.V[i].z;
+        }
+        mesh.barycenterX = sumX / nV;
+        mesh.barycenterY = sumY / nV;
+        mesh.barycenterZ = sumZ / nV;
+
+        meshes.push_back(mesh);
+        return 0;
+    } catch (...) {
+        std::cerr << "Error opening file." << std::endl;
+        return -1;
+    }
+}
+
+// read a texture picture and associate it to a mesh
+int readTexture(string textureFilename, Mesh& mesh) {
+    // read image file
+    int width, height, nrChannels;
+    unsigned char *data;
+    objl::Loader loader;
+    std::ifstream testFile((dataPath + textureFilename).c_str());
+    if (testFile.good()) {     
+        data = stbi_load((dataPath + textureFilename).c_str(), &width, &height, &nrChannels, 0);
+    } else {
+        testFile.close();
+        testFile.open(("../" + dataPath + textureFilename).c_str());
+        if (!testFile.good()) throw 1;
+        data = stbi_load(("../" + dataPath + textureFilename).c_str(), &width, &height, &nrChannels, 0);
+    }
+    testFile.close();
+
+    if (data) {
+        unsigned int texture;
+        // create a new texture
+        glGenTextures(1, &texture);
+        check_gl_error();
+        glBindTexture(GL_TEXTURE_2D, texture);
+        check_gl_error();
+        // set the texture wrapping/filtering options (on the currently bound texture object)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        check_gl_error();
+        // upload texture image
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        check_gl_error();
+        glGenerateMipmap(GL_TEXTURE_2D);
+        check_gl_error();
+
+        stbi_image_free(data);
+
+        // Save the texture ID for later reference
+        textures.push_back(texture);
+        mesh.texture = textures.size() - 1;
+        return 0;
+    }
+    else {
+        std::cout << "Failed to load texture" << std::endl;
+        return -1;
     }
 }
 
@@ -143,6 +274,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             break;
         case  GLFW_KEY_3:
             objects.push_back(Object(2));
+            break;
+        case  GLFW_KEY_4:
+            objects.push_back(Object(3));
+            break;
+        case  GLFW_KEY_5:
+            objects.push_back(Object(4));
             break;
         case GLFW_KEY_F1:
             if (highlighted != NO_HIGHLIGHTED) {
@@ -306,7 +443,16 @@ void myProgramInit(Program& program, unsigned i, float time) {
     // in the vertex shader
     program.bindVertexAttribArray("position_m",VBO[objects[i].model]);
     program.bindVertexAttribArray("normal_m",VBO_N[objects[i].model]);
+    program.bindVertexAttribArray("texCoords",VBO_T[objects[i].model]);
+
     EBO[objects[i].model].bind();
+
+    // Set textures to use in texture units
+    glActiveTexture(GL_TEXTURE0);           // GL_TEXTURE0 denotes the default texture unit
+    glBindTexture(GL_TEXTURE_2D, textures[meshes[objects[i].model].texture]);
+    // Bind texture units to samplers
+    glUniform1i(program.uniform("tex"), 0); // note to self: the parameter to bind to the sampler uniform is 0,
+                                            // not GL_TEXTURE0 (which is not 0)!
 
     // Set the transformation parameters for the object
     glUniform3f(program.uniform("TR"), objects[i].translateX, objects[i].translateY, objects[i].translateZ);
@@ -360,7 +506,7 @@ int main(void)
 #endif
 
     // Create a windowed mode window and its OpenGL context
-    window = glfwCreateWindow(RESOLUTION_X, RESOLUTION_Y, "3D scene editor", NULL, NULL);
+    window = glfwCreateWindow(RESOLUTION_X, RESOLUTION_Y, "3D physics simulation", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -404,173 +550,56 @@ int main(void)
     VAO.init();
     VAO.bind();
 
-    // read model meshes
+    // read models from .off meshes
     readMesh("unit_cube.off", meshes);
     readMesh("bumpy_cube.off", meshes);
     readMesh("bunny.off", meshes);
+
+    // read models from .obj files (as well as their texture pictures)
+    readObj("Earth.obj", meshes);
+    //readObj("fancy_sphere_1_reduced.obj", meshes);
+
+    // read textures
+    readTexture("Earth.png", meshes[3]);
+    //readTexture("one_pixel_0_0.5_1.bmp", meshes[4]);
+
     // For each model mesh, create and initialize a VBO and EBO with its vertices data
     for (unsigned i = 0; i < meshes.size(); ++i) {
         VBO.push_back(VertexBufferObject());
         VBO[i].init();
         VBO_N.push_back(VertexBufferObject());
         VBO_N[i].init();
+        VBO_T.push_back(VertexBufferObject()); // even if a mesh model doesn't have texture,
+        VBO_T[i].init();                       // a position is still reserved
         EBO.push_back(ElementBufferObject());
         EBO[i].init();
 
         VBO[i].update(meshes[i].V);
         VBO_N[i].update(meshes[i].VN);
+        VBO_T[i].update(meshes[i].texCorrds);
         EBO[i].update(meshes[i].F);
     }
-
+    
+    // declare shaders
+    extern const GLchar *vertex_shader,
+                        *fragment_shader_flat,
+                        *fragment_shader_phong,
+                        *fragment_shader_debug_normal,
+                        *fragment_shader_rawColor;
     // Initialize the OpenGL Program
     // A program controls the OpenGL pipeline and it must contains
     // at least a vertex shader and a fragment shader to be valid
-    Program program_flat, program_phong, program_rawColor, program_debug_normal;
-    const GLchar* vertex_shader = 
-        R"GLSL(
-            #version 150 core
-                    in vec3 position_m;
-                    in vec3 normal_m;
-                    out vec3 position_w;
-                    out vec3 normal_w;
-                    uniform vec3 TR, RO, barycenter;
-                    uniform float SC;
-                    uniform mat4 M_view, M_projection;
-
-                    void main()
-                    {
-                        mat4 M_TR = mat4(1.0, 0.0, 0.0, 0.0,   // NOTE to self: This is the first COLUMN, not row!!!
-                                         0.0, 1.0, 0.0, 0.0,
-                                         0.0, 0.0, 1.0, 0.0,
-                                         TR.x, TR.y, TR.z, 1.0);
-                        mat4 M_RO_X = mat4(1.0, 0.0, 0.0, 0.0,
-                                           0.0, cos(RO.x), sin(RO.x), 0.0,
-                                           0.0, -sin(RO.x), cos(RO.x), 0.0,
-                                           0.0, 0.0, 0.0, 1.0);
-                        mat4 M_RO_Y = mat4(cos(RO.y), 0.0, sin(RO.y), 0.0,
-                                           0.0, 1.0, 0.0, 0.0,
-                                           -sin(RO.y), 0.0, cos(RO.y), 0.0,
-                                           0.0, 0.0, 0.0, 1.0);
-                        mat4 M_RO_Z = mat4(cos(RO.z), sin(RO.z), 0.0, 0.0,
-                                           -sin(RO.z), cos(RO.z), 0.0, 0.0,
-                                           0.0, 0.0, 1.0, 0.0,
-                                           0.0, 0.0, 0.0, 1.0);
-                        mat4 M_SC = mat4(SC, 0.0, 0.0, 0.0,
-                                         0.0, SC, 0.0, 0.0,
-                                         0.0, 0.0, SC, 0.0,
-                                         0.0, 0.0, 0.0, 1.0);
-                        mat4 M_toBarycenter = mat4(1.0, 0.0, 0.0, 0.0,
-                                                   0.0, 1.0, 0.0, 0.0,
-                                                   0.0, 0.0, 1.0, 0.0,
-                                                   -barycenter.x, -barycenter.y, -barycenter.z, 1.0);
-                        mat4 M_backFromBarycenter = mat4(1.0, 0.0, 0.0, 0.0,
-                                                         0.0, 1.0, 0.0, 0.0,
-                                                         0.0, 0.0, 1.0, 0.0,
-                                                         barycenter.x, barycenter.y, barycenter.z, 1.0);
-
-                        mat4 M_model = M_backFromBarycenter
-                                       * M_TR * M_SC * M_RO_Z * M_RO_Y * M_RO_X
-                                       * M_toBarycenter;
-                        mat3 M_normal = mat3(transpose(inverse(M_model)));
-
-                        // Calculate transformations
-                        position_w = vec3(M_model * vec4(position_m, 1.0));
-                        normal_w = normalize(M_normal * normal_m);
-                        gl_Position = M_projection * M_view * vec4(position_w, 1.0);
-                    }
-        )GLSL";
-    const GLchar* fragment_shader_flat = 
-        R"GLSL(
-            #version 150 core
-                    in vec3 position_w;
-                    out vec4 outColor;
-                    uniform vec3 color;
-                    uniform float ambient_coef, diffuse_coef, specular_coef, phongExp;
-                    uniform vec3 camera_pos;
-
-                    vec3 lightsource = vec3(5.0, 5.0, 5.0);
-
-                    void main()
-                    {
-                        // calculate flat face normal
-                        vec3 xTangent = dFdx(position_w);
-                        vec3 yTangent = dFdy(position_w);
-                        vec3 faceNormal = normalize(cross(xTangent, yTangent));
-
-                        vec3 ambient = ambient_coef * color;
-                        vec3 diffuse = diffuse_coef * color 
-                                         * clamp(dot(normalize(lightsource - position_w), faceNormal), 0.0, 1.0);
-                        vec3 phong = specular_coef * color
-                                       * pow(clamp(dot(normalize(lightsource - position_w)
-                                                       + normalize(camera_pos - position_w)
-                                                   , faceNormal) / 2.0, 0.0, 1.0)
-                                             , phongExp);
-                        outColor = vec4(ambient + diffuse + phong, 1.0);
-                    }
-        )GLSL";
-    const GLchar* fragment_shader_phong = 
-        R"GLSL(
-            #version 150 core
-                    in vec3 position_w;
-                    in vec3 normal_w;
-                    out vec4 outColor;
-                    uniform vec3 color;
-                    uniform float ambient_coef, diffuse_coef, specular_coef, phongExp;
-                    uniform vec3 camera_pos;
-
-                    vec3 lightsource = vec3(5.0, 5.0, 5.0);
-
-                    void main()
-                    {
-                        vec3 ambient = ambient_coef * color;
-                        vec3 diffuse = diffuse_coef * color 
-                                         * clamp(dot(normalize(lightsource - position_w), normal_w), 0.0, 1.0);
-                        vec3 phong = specular_coef * color
-                                       * pow(clamp(dot(normalize(lightsource - position_w)
-                                                       + normalize(camera_pos - position_w)
-                                                   , normal_w) / 2.0, 0.0, 1.0)
-                                             , phongExp);
-                        outColor = vec4(ambient + diffuse + phong, 1.0);
-                    }
-        )GLSL";
-    const GLchar* fragment_shader_debug_normal = 
-        R"GLSL(
-            #version 150 core
-                    in vec3 position_w;
-                    out vec4 outColor;
-                    uniform vec3 camera_pos;
-
-                    void main()
-                    {
-                        vec3 xTangent = dFdx(position_w);
-                        vec3 yTangent = dFdy(position_w);
-                        vec3 faceNormal = normalize(cross(xTangent, yTangent));
-
-                        outColor = vec4(faceNormal, 1.0);
-                    }
-        )GLSL";
-    const GLchar* fragment_shader_rawColor = 
-        R"GLSL(
-            #version 150 core
-                    out vec4 outColor;
-                    uniform vec3 color;
-                    void main()
-                    {
-                        outColor = vec4(color, 1.0);
-                    }
-        )GLSL";
-
-    // Compile the two shaders and upload the binary to the GPU
+    Program program_flat,
+            program_phong, 
+            program_rawColor, 
+            program_debug_normal;
+    // Compile the shaders and upload the binary to the GPU
     // Note that we have to explicitly specify that the output "slot" called outColor
     // is the one that we want in the fragment buffer (and thus on screen)
     program_flat.init(vertex_shader,fragment_shader_flat,"outColor");
     program_phong.init(vertex_shader,fragment_shader_phong,"outColor");
     program_rawColor.init(vertex_shader,fragment_shader_rawColor,"outColor");
     program_debug_normal.init(vertex_shader,fragment_shader_debug_normal,"outColor");
-
-    readMesh("unit_cube.off", meshes);
-    readMesh("bumpy_cube.off", meshes);
-    readMesh("bunny.off", meshes);
 
     // enable z-buffer
     glEnable(GL_DEPTH_TEST);
@@ -589,9 +618,9 @@ int main(void)
         VAO.bind();
 
         // Clear the framebuffer and z-buffer
-        glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+        glClearColor(BACKGROUND_R, BACKGROUND_G, BACKGROUND_B, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
-
+        
         // calculate time difference
         auto t_now = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration_cast<std::chrono::duration<float>>(t_now - t_start).count();
@@ -626,7 +655,7 @@ int main(void)
                                0);
             }
             // Draw a wireframe
-            if (objects[i].wireframe) {
+            /*if (objects[i].wireframe) {
                 myProgramInit(program_rawColor, i, time);
                 glUniform3f(program_rawColor.uniform("color"), 0.0, 0.0, 0.0);
                 for (unsigned j = 0; j < EBO[objects[i].model].cols; ++j) {
@@ -635,7 +664,7 @@ int main(void)
                                    GL_UNSIGNED_INT,
                                    (GLvoid *) (j * EBO[objects[i].model].rows * sizeof(unsigned)));
                 }
-            }
+            }*/
         }
 
         // Swap front and back buffers
@@ -655,6 +684,7 @@ int main(void)
     for (unsigned i = 0; i < VBO.size(); ++i) {
         VBO[i].free();
         VBO_N[i].free();
+        VBO_T[i].free();
     }
     for (unsigned i = 0; i < EBO.size(); ++i) {
         EBO[i].free();

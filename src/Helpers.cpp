@@ -113,12 +113,24 @@ void VertexBufferObject::free()
 
 void VertexBufferObject::update(const vector<Point>& coords)
 {
+  if (!coords.size()) return;
   assert(id != 0);
   glBindBuffer(GL_ARRAY_BUFFER, id);
   glBufferData(GL_ARRAY_BUFFER, sizeof(Point)*coords.size(), &coords[0], GL_STATIC_DRAW);
   rows = sizeof(Point) / sizeof(float);
   cols = coords.size();
   check_gl_error();
+}
+
+void VertexBufferObject::update(const vector<Point2d>& coords)
+{
+    if (!coords.size()) return;
+    assert(id != 0);
+    glBindBuffer(GL_ARRAY_BUFFER, id);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Point2d)*coords.size(), &coords[0], GL_STATIC_DRAW);
+    rows = sizeof(Point2d) / sizeof(float);
+    cols = coords.size();
+    check_gl_error();
 }
 
 void ElementBufferObject::init()
@@ -141,6 +153,7 @@ void ElementBufferObject::free()
 
 void ElementBufferObject::update(const vector<Face>& faces)
 {
+    if (!faces.size()) return;
     assert(id != 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Face)*faces.size(), &faces[0], GL_STATIC_DRAW);

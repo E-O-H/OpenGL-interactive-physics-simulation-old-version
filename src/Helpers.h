@@ -1,15 +1,17 @@
-#ifndef SHADER_H
-#define SHADER_H
+#ifndef HELPERS_H
+#define HELPERS_H
 
 #include <string>
 #include <vector>
 #include <cmath>
+#include <utility>
 // Linear Algebra Library
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
 using std::string;
 using std::vector;
+using std::pair;
 using std::sin;
 using std::cos;
 using std::atan;
@@ -68,6 +70,10 @@ struct Point {
     float x, y, z;
 };
 
+struct Point2d {
+    float u, v;
+};
+
 struct Face {
     unsigned a, b, c;
 };
@@ -80,6 +86,10 @@ public:
 
     vector<Point> VN;   // List of vertex normals
     vector<Point> FN;   // List of face normals
+    
+    vector<Point2d> texCorrds; // List of vertex texture coords
+    unsigned texture = -1;     // texture data ID; -1 stands for no texture
+
     float barycenterX, barycenterY, barycenterZ;
 
     Mesh() {};
@@ -90,7 +100,7 @@ class Object {
 public:
     unsigned model;
 
-    shading_t shading = FLAT;
+    shading_t shading = PHONG;
     bool wireframe = true;
     unsigned int colorR = 255;
     unsigned int colorG = 255;
@@ -166,6 +176,7 @@ public:
 
     // Updates the VBO with a mesh
     void update(const vector<Point>& coords);
+    void update(const vector<Point2d>& coords);
 
     // Select this VBO for subsequent draw calls
     void bind();
