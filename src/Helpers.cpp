@@ -3,59 +3,6 @@
 #include <iostream>
 #include <fstream>
 
-void Camera::update_theta(float val) {
-    theta = val;
-    update_view_matrix();
-}
-
-void Camera::update_phi(float val) {
-    phi = val;
-    update_view_matrix();
-}
-
-void Camera::update_r(float val) {
-    r = val;
-    update_view_matrix();
-}
-
-// Convert to orthogonal coordinates
-Vector3f Camera::getXYZ() {
-    return Vector3f(r * cos(phi) * sin(theta), 
-                    r * sin(phi), 
-                    r * cos(phi) * cos(theta));
-}
-
-void Camera::update_view_matrix() {
-    // The three base vectors of the camera (view) coordinates frame
-    Vector3f position = getXYZ();
-    Vector3f zBase = (position - lookTarget).normalized();
-    Vector3f xBase = upDirection.cross(zBase).normalized();
-    Vector3f yBase = zBase.cross(xBase);
-    M_view << xBase.x(), xBase.y(), xBase.z(), -xBase.dot(position),
-        yBase.x(), yBase.y(), yBase.z(), -yBase.dot(position),
-        zBase.x(), zBase.y(), zBase.z(), -zBase.dot(position),
-        0,         0,         0,         1;
-}
-
-void Camera::update_projection_matrix() {
-    M_orthographic << 1 / ortho_width, 0, 0, 0,
-                      0, 1 / ortho_width * RESOLUTION_Y / RESOLUTION_X, 0, 0,
-                      0, 0, -2 / (Z_far_limit - Z_near_limit), -(Z_far_limit + Z_near_limit) / (Z_far_limit - Z_near_limit),
-                      0, 0, 0, 1;
-    M_perspective << atan(persp_FOVx / 2), 0, 0, 0,
-                     0, atan(persp_FOVx / 2 * RESOLUTION_Y / RESOLUTION_X), 0, 0,
-                     0, 0, -(Z_far_limit + Z_near_limit) / (Z_far_limit - Z_near_limit), -2 * Z_far_limit * Z_near_limit / (Z_far_limit - Z_near_limit),
-                     0, 0, -1, 0;
-};
-
-Camera::Camera() : theta(DEFAULT_CAMERA_THETA), phi(DEFAULT_CAMERA_PHI), r(DEFAULT_CAMERA_R), 
-                   Z_far_limit(100.0), Z_near_limit(1E-3), 
-                   ortho_width(DEFAULT_ORTHO_WIDTH), persp_FOVx(DEFAULT_PERSP_FOVX),
-                   lookTarget(0.0, 0.0, 0.0), upDirection(0.0, 1.0, 0.0), perspective(true) {
-    update_view_matrix();
-    update_projection_matrix();
-}
-
 Object::Object(unsigned _model) : model(_model) {
     translateX = -meshes[_model].barycenterX;
     translateY = -meshes[_model].barycenterY;

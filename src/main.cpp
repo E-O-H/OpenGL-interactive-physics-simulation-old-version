@@ -2,6 +2,7 @@
 
 // OpenGL Helpers to reduce the clutter
 #include "Helpers.h"
+#include "camera.h"
 #include "OBJ_Loader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -29,6 +30,8 @@
 #define TRANSLATE_FRAME_STEP    1E-2
 #define ROTATE_FRAME_STEP       3E-3
 #define SCALE_FRAME_STEP        3E-3
+
+#define MOUSE_SENSITIVITY       1.0
 
 const string dataPath = "./data/";  // path for data files
 
@@ -248,8 +251,7 @@ int readTexture(string textureFilename, Mesh& mesh) {
     }
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-{
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     // Get the position of the mouse in the window
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
@@ -261,6 +263,15 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     // Convert screen position to world coordinates
     double xworld = ((xpos/double(width))*2)-1;
     double yworld = (((height-1-ypos)/double(height))*2)-1; // NOTE: y axis is flipped in glfw
+}
+
+void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
+    // Get the size of the window
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+
+    camera.look(xpos / double(width) * PI * MOUSE_SENSITIVITY, 
+                (height - 1 - ypos) / double(height) * PI * MOUSE_SENSITIVITY);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -314,10 +325,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
                 blinkHighlight = !blinkHighlight;
             }
             break;
-        case GLFW_KEY_ESCAPE:
+        case GLFW_KEY_BACKSPACE:
             highlighted = NO_HIGHLIGHTED;
             break;
-        case GLFW_KEY_SPACE:
+        case GLFW_KEY_ENTER:
             camera.perspective = !camera.perspective;
             break;
         case GLFW_KEY_EQUAL:
@@ -342,6 +353,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
                 if (highlighted == -1) highlighted = objects.size() - 1;
             }
             break;
+        case GLFW_KEY_ESCAPE:
+            exit(0);
+            break;
         default:
             break;
         }
@@ -351,28 +365,28 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 // test for key state (for holding keys)
 void testKeyStates(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_W)) {
-        // camera up
-        camera.update_phi(camera.phi + CAMERA_PAN_FRAME_STEP);
+        // camera forward
+        camera.forward(CAMERA_PAN_FRAME_STEP);
     }
     if (glfwGetKey(window, GLFW_KEY_S)) {
-        // camera down
-        camera.update_phi(camera.phi - CAMERA_PAN_FRAME_STEP);
+        // camera backward
+        camera.forward(- CAMERA_PAN_FRAME_STEP);
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
         // camera right
-        camera.update_theta(camera.theta + CAMERA_PAN_FRAME_STEP);
+        camera.strafe(CAMERA_PAN_FRAME_STEP);
     }
     if (glfwGetKey(window, GLFW_KEY_A)) {
         // camera left
-        camera.update_theta(camera.theta - CAMERA_PAN_FRAME_STEP);
+        camera.strafe(- CAMERA_PAN_FRAME_STEP);
     }
-    if (glfwGetKey(window, GLFW_KEY_F)) {
-        // camera forward
-        camera.update_r(camera.r - CAMERA_ZOOM_FRAME_STEP);
+    if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+        // camera up
+        camera.ascend(CAMERA_PAN_FRAME_STEP);
     }
-    if (glfwGetKey(window, GLFW_KEY_V)) {
-        // camera backward
-        camera.update_r(camera.r + CAMERA_ZOOM_FRAME_STEP);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT)) {
+        // camera down
+        camera.ascend(- CAMERA_PAN_FRAME_STEP);
     }
     if (highlighted != NO_HIGHLIGHTED) {
         if (glfwGetKey(window, GLFW_KEY_I)) {
@@ -475,7 +489,7 @@ void myProgramInit(Program& program, unsigned i, float time) {
 
     // Set camera parameters (for calculating lighting)
     glUniform3f(program.uniform("camera_pos"), 
-                camera.getXYZ().x(), camera.getXYZ().y(), camera.getXYZ().z());
+                camera.position.x(), camera.position.y(), camera.position.z());
     // Set camera view and projection matrices
     glUniformMatrix4fv(program.uniform("M_view"), 1, GL_FALSE, camera.M_view.data());
     if (camera.perspective)
@@ -540,6 +554,7 @@ int main(void)
     glfwSetKeyCallback(window, key_callback);
     // Register the mouse callback
     glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetCursorPosCallback(window, cursor_pos_callback);
 
     // Initialize the VAO
     // A Vertex Array Object (or VAO) is an object that describes how the vertex
@@ -607,6 +622,9 @@ int main(void)
     // don't miss key state change
     glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, 1);
     glfwSetInputMode(window, GLFW_STICKY_KEYS, 1);
+
+    // unlimited mouse movement for camera
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Save the current time --- it will be used to dynamically change the triangle color
     auto t_start = std::chrono::high_resolution_clock::now();

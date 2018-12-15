@@ -1,23 +1,7 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
-#include <string>
-#include <vector>
-#include <cmath>
-#include <utility>
-// Linear Algebra Library
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-
-using std::string;
-using std::vector;
-using std::pair;
-using std::sin;
-using std::cos;
-using std::atan;
-using Eigen::Vector3f;
-using Eigen::Vector4f;
-using Eigen::Matrix4f;
+#include "common_header.h"
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -40,19 +24,6 @@ using Eigen::Matrix4f;
 #   endif
 #   include <GL/gl.h>
 #endif
-
-#define PI 3.1415926
-
-#define RESOLUTION_X 1080
-#define RESOLUTION_Y 1080
-
-#define DEFAULT_CAMERA_THETA 0.0
-#define DEFAULT_CAMERA_PHI   0.0
-#define DEFAULT_CAMERA_R     2.0
-#define DEFAULT_ORTHO_WIDTH  2.0
-#define DEFAULT_PERSP_FOVX   PI / 2
-
-
 
 class Mesh;
 class Object;
@@ -115,31 +86,6 @@ public:
     float scale = 1;
 
     Object(unsigned _model = 0);
-};
-
-// Class to represent camera
-class Camera {
-public:
-    float theta, phi, r; 
-    Vector3f lookTarget, upDirection;
-    bool perspective;
-    float Z_far_limit, Z_near_limit, ortho_width, persp_FOVx;
-
-    Matrix4f M_view, M_perspective, M_orthographic;
-    
-    void update_theta(float val);
-    void update_phi(float val);
-    void update_r(float val);
-
-    // Convert to orthogonal coordinates
-    Vector3f getXYZ();
-
-    // Updates the view matrix
-    void update_view_matrix();
-    // Updates the projection matrix
-    void update_projection_matrix();
-
-    Camera();
 };
 
 class VertexArrayObject
