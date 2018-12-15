@@ -164,6 +164,7 @@ GLint Program::uniform(const std::string &name) const
 GLint Program::bindVertexAttribArray(
         const std::string &name, VertexBufferObject& VBO) const
 {
+  if (!VBO.rows) return -1;
   GLint id = attrib(name);
   if (id < 0)
     return id;

@@ -25,7 +25,7 @@
 
 #define AMBIENT_COEF    0.3
 
-#define CAMERA_PAN_FRAME_STEP   4E-3
+#define CAMERA_PAN_FRAME_STEP   1E-2
 #define CAMERA_ZOOM_FRAME_STEP  3E-3
 #define TRANSLATE_FRAME_STEP    1E-2
 #define ROTATE_FRAME_STEP       3E-3
@@ -270,8 +270,11 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     int width, height;
     glfwGetWindowSize(window, &width, &height);
 
-    camera.look(xpos / double(width) * PI * MOUSE_SENSITIVITY, 
-                (height - 1 - ypos) / double(height) * PI * MOUSE_SENSITIVITY);
+    float yaw, pitch;
+    yaw = xpos / double(width) * PI * MOUSE_SENSITIVITY;
+    pitch = (int(height - 1 - ypos) % height / double(height) - 0.5) // NOTE: y axis is flipped in glfw
+            * PI * MOUSE_SENSITIVITY;                                // Radian value is restricted within (-PI/2, PI/2)
+    camera.look(yaw, pitch);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -577,6 +580,9 @@ int main(void)
     // read textures
     readTexture("Earth.png", meshes[3]);
     //readTexture("one_pixel_0_0.5_1.bmp", meshes[4]);
+    readTexture("one_pixel_0_0.5_1.bmp", meshes[0]);
+    readTexture("one_pixel_0_0.5_1.bmp", meshes[1]);
+    readTexture("one_pixel_0_0.5_1.bmp", meshes[2]);
 
     // For each model mesh, create and initialize a VBO and EBO with its vertices data
     for (unsigned i = 0; i < meshes.size(); ++i) {
@@ -673,16 +679,16 @@ int main(void)
                                0);
             }
             // Draw a wireframe
-            /*if (objects[i].wireframe) {
+            if (objects[i].wireframe) {
                 myProgramInit(program_rawColor, i, time);
-                glUniform3f(program_rawColor.uniform("color"), 0.0, 0.0, 0.0);
+                glUniform3f(program_rawColor.uniform("color"), 1.0, 1.0, 1.0);
                 for (unsigned j = 0; j < EBO[objects[i].model].cols; ++j) {
                     glDrawElements(GL_LINE_STRIP,
                                    EBO[objects[i].model].rows,
                                    GL_UNSIGNED_INT,
                                    (GLvoid *) (j * EBO[objects[i].model].rows * sizeof(unsigned)));
                 }
-            }*/
+            }
         }
 
         // Swap front and back buffers

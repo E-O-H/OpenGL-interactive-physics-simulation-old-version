@@ -72,7 +72,7 @@ public:
     unsigned model;
 
     shading_t shading = PHONG;
-    bool wireframe = true;
+    bool wireframe = false;
     unsigned int colorR = 255;
     unsigned int colorG = 255;
     unsigned int colorB = 255;
