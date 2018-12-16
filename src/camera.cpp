@@ -47,7 +47,7 @@ Camera::Camera() : position(DEFAULT_CAMERA_X, DEFAULT_CAMERA_Y, DEFAULT_CAMERA_Z
                                  sin(DEFAULT_CAMERA_PITCH),
                                  - cos(DEFAULT_CAMERA_PITCH) * cos(DEFAULT_CAMERA_YAW)), 
                    upDirection(0.0, 1.0, 0.0),
-                   Z_far_limit(100.0), Z_near_limit(1E-3),
+                   Z_far_limit(10000.0), Z_near_limit(1E-3),
                    ortho_width(DEFAULT_ORTHO_WIDTH), persp_FOVx(DEFAULT_PERSP_FOVX),
                    perspective(true) {
     update_view_matrix();

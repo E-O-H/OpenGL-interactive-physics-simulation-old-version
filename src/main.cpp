@@ -10,6 +10,7 @@
 // STL headers
 #include <iostream>
 #include <fstream>
+#include <utility>
 
 // GLFW is necessary to handle the OpenGL context
 #include <GLFW/glfw3.h>
@@ -27,13 +28,16 @@
 
 #define AMBIENT_COEF    0.3
 
-#define CAMERA_PAN_FRAME_STEP   1E-2
-#define CAMERA_ZOOM_FRAME_STEP  3E-3
-#define TRANSLATE_FRAME_STEP    1E-2
-#define ROTATE_FRAME_STEP       3E-3
-#define SCALE_FRAME_STEP        3E-3
+#define CAMERA_PAN_FRAME_STEP    5E-2
+#define CAMERA_ZOOM_FRAME_STEP   3E-3
+#define TRANSLATE_FRAME_STEP     1E-2
+#define ROTATE_FRAME_STEP        3E-3
+#define SCALE_FRAME_STEP         3E-3
 
-#define MOUSE_SENSITIVITY       1.0
+#define LAUNCH_SPEED_CHANGE_STEP 1E-2
+#define LAUNCH_SPEED_THREASHOLD  1E-1
+
+#define MOUSE_SENSITIVITY        1.0
 
 const string dataPath = "./data/";  // path for data files
 
@@ -47,16 +51,23 @@ vector<VertexBufferObject> VBO_T;   // vertex texture coords
 vector<ElementBufferObject> EBO;
 
 vector<Mesh> meshes;          // list to store all model meshes
-vector<Object> objects;       // list to store all objects in the scene
+vector<Object> objects;       // list to store all objects
+                              // (store structure: 
+                              //  static objects that does not participate in physics simulation, 
+                              //  objects in the scene that participate in physics simulation,
+                              //  hand object)
 
 vector<unsigned> textures;    // list to store texture IDs
 
-void physics();
+void physics(unsigned start_index, unsigned end_index);
 
 Camera camera;
 
 int highlighted = NO_HIGHLIGHTED;
 bool blinkHighlight = true;
+
+float cameraMoveSpeed = CAMERA_PAN_FRAME_STEP;  // The initial movement speed
+float launchSpeed = 0.0;                        // The initial object launch speed
 
 // Function to read a ".off" mesh data file
 int readMesh(string filename, vector<Mesh>& meshes) {
@@ -128,6 +139,15 @@ int readMesh(string filename, vector<Mesh>& meshes) {
         mesh.barycenterY = sumY / nV;
         mesh.barycenterZ = sumZ / nV;
 
+        // calculate radius of containing sphere centered on barycenter
+        float max = 0.0;
+        for (unsigned i = 0; i < mesh.V.size(); ++i) {
+            max = std::max(max, square(mesh.V[i].x - mesh.barycenterX)
+                                + square(mesh.V[i].y - mesh.barycenterZ)
+                                + square(mesh.V[i].z - mesh.barycenterZ));
+        }
+        mesh.maxRadius = std::sqrt(max);
+
         meshes.push_back(mesh);
         return 0;
     } catch (...) {
@@ -198,6 +218,15 @@ int readObj(string objFilename, vector<Mesh>& meshes) {
         mesh.barycenterY = sumY / nV;
         mesh.barycenterZ = sumZ / nV;
 
+        // calculate radius of containing sphere centered on barycenter
+        float max = 0.0;
+        for (unsigned i = 0; i < mesh.V.size(); ++i) {
+            max = std::max(max, square(mesh.V[i].x - mesh.barycenterX)
+                                 + square(mesh.V[i].y - mesh.barycenterZ)
+                                 + square(mesh.V[i].z - mesh.barycenterZ));
+        }
+        mesh.maxRadius = std::sqrt(max);
+
         meshes.push_back(mesh);
         return 0;
     } catch (...) {
@@ -255,20 +284,6 @@ int readTexture(string textureFilename, Mesh& mesh) {
     }
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    // Get the position of the mouse in the window
-    double xpos, ypos;
-    glfwGetCursorPos(window, &xpos, &ypos);
-
-    // Get the size of the window
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
-
-    // Convert screen position to world coordinates
-    double xworld = ((xpos/double(width))*2)-1;
-    double yworld = (((height-1-ypos)/double(height))*2)-1; // NOTE: y axis is flipped in glfw
-}
-
 void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     // Get the size of the window
     int width, height;
@@ -281,53 +296,109 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     camera.look(yaw, pitch);
 }
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    if (yoffset > 0) {
+        if (launchSpeed < LAUNCH_SPEED_THREASHOLD) {
+            launchSpeed += LAUNCH_SPEED_CHANGE_STEP * yoffset;
+        } else {
+            launchSpeed *= 1.2 * yoffset;
+        }
+    } else {
+        if (launchSpeed < LAUNCH_SPEED_THREASHOLD) {
+            launchSpeed -= LAUNCH_SPEED_CHANGE_STEP * -yoffset;
+            launchSpeed = std::max(launchSpeed, 0.0f);
+        } else {
+            launchSpeed /= 1.2 * -yoffset;
+        }
+    }
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        objects.back().translateX_last = objects.back().translateX - launchSpeed * camera.lookDirection.x();
+        objects.back().translateY_last = objects.back().translateY - launchSpeed * camera.lookDirection.y();
+        objects.back().translateZ_last = objects.back().translateZ - launchSpeed * camera.lookDirection.z();
+        objects.push_back(objects.back());
+    }
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
+        // Stop rotation of current object in hand.
+        // Also reset launch speed to 0.
+        objects.back().rotateY_last = objects.back().rotateY;
+        launchSpeed = 0.0;
+    }
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         switch (key) {
         case GLFW_KEY_GRAVE_ACCENT:
-            objects.clear();
+            // delete all objects in scene (that is, in physics simulation)
+            objects.erase(objects.begin() + 1, objects.end() - 1);
             break;
         case  GLFW_KEY_1:
-            objects.push_back(Object(0));
+            objects.back() = Object(0);
             break;
         case GLFW_KEY_2:
-            objects.push_back(Object(1));
+            objects.back() = Object(1);
             break;
         case  GLFW_KEY_3:
-            objects.push_back(Object(2));
+            objects.back() = Object(2);
             break;
         case  GLFW_KEY_4:
-            objects.push_back(Object(3));
+            objects.back() = Object(3);
             break;
         case  GLFW_KEY_5:
-            objects.push_back(Object(4));
+            objects.back() = Object(4);
             break;
         case GLFW_KEY_F1:
-            if (highlighted != NO_HIGHLIGHTED) {
-                objects[highlighted].shading = WIREFRAME;
-                objects[highlighted].wireframe = true;
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().shading = WIREFRAME;
+                    objects.back().wireframe = true;
+                } else {
+                    objects[highlighted].shading = WIREFRAME;
+                    objects[highlighted].wireframe = true;
+                }
             }
             break;
         case GLFW_KEY_F2:
-            if (highlighted != NO_HIGHLIGHTED) {
-                objects[highlighted].shading = FLAT;
-                objects[highlighted].wireframe = true;
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().shading = FLAT;
+                    objects.back().wireframe = true;
+                } else {
+                    objects[highlighted].shading = FLAT;
+                    objects[highlighted].wireframe = true;
+                }
             }
             break;
         case GLFW_KEY_F3:
-            if (highlighted != NO_HIGHLIGHTED) {
-                objects[highlighted].shading = PHONG;
-                objects[highlighted].wireframe = false;
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().shading = PHONG;
+                    objects.back().wireframe = false;
+                } else {
+                    objects[highlighted].shading = PHONG;
+                    objects[highlighted].wireframe = false;
+                }
             }
             break;
         case GLFW_KEY_F4:
-            if (highlighted != NO_HIGHLIGHTED) {
-                objects[highlighted].shading = DEBUG_NORMAL;
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().shading = DEBUG_NORMAL;
+                } else {
+                    objects[highlighted].shading = DEBUG_NORMAL;
+                }
             }
             break;
         case GLFW_KEY_TAB:
-            if (highlighted != NO_HIGHLIGHTED) {
-                objects[highlighted].wireframe = !objects[highlighted].wireframe;
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().wireframe = !objects.back().wireframe;
+                } else {
+                    objects[highlighted].wireframe = !objects[highlighted].wireframe;
+                }
             }
             break;
         case GLFW_KEY_BACKSLASH:
@@ -341,15 +412,59 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_ENTER:
             camera.perspective = !camera.perspective;
             break;
-        case GLFW_KEY_EQUAL:
+        case GLFW_KEY_RIGHT_BRACKET:
             camera.ortho_width *= 1.2;
             camera.persp_FOVx *= 1.2;
             camera.update_projection_matrix();
             break;
-        case GLFW_KEY_MINUS:
-            camera.ortho_width *= 0.8;
-            camera.persp_FOVx *= 0.8;
+        case GLFW_KEY_LEFT_BRACKET:
+            camera.ortho_width /= 1.2;
+            camera.persp_FOVx /= 1.2;
             camera.update_projection_matrix();
+            break;
+        case GLFW_KEY_EQUAL:
+        case GLFW_KEY_KP_ADD:
+            cameraMoveSpeed *= 2.0;
+            break;
+        case GLFW_KEY_MINUS:
+        case GLFW_KEY_KP_SUBTRACT:
+            cameraMoveSpeed *= 0.5;
+            break;
+        case GLFW_KEY_R:
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().collision_radius *= 1.2;
+                } else {
+                    objects[highlighted].collision_radius *= 1.2;
+                }
+            }
+            break;
+        case GLFW_KEY_F:
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().collision_radius /= 1.2;
+                } else {
+                    objects[highlighted].collision_radius /= 1.2;
+                }
+            }
+            break;
+        case GLFW_KEY_T:
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().density *= 1.2;
+                } else {
+                    objects[highlighted].density *= 1.2;
+                }
+            }
+            break;
+        case GLFW_KEY_G:
+            if (!objects.empty()) {
+                if (highlighted == NO_HIGHLIGHTED) {
+                    objects.back().density /= 1.2;
+                } else {
+                    objects[highlighted].density /= 1.2;
+                }
+            }
             break;
         case GLFW_KEY_E:
             if (objects.size()) {
@@ -376,27 +491,27 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void testKeyStates(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_W)) {
         // camera forward
-        camera.forward(CAMERA_PAN_FRAME_STEP);
+        camera.forward(cameraMoveSpeed);
     }
     if (glfwGetKey(window, GLFW_KEY_S)) {
         // camera backward
-        camera.forward(- CAMERA_PAN_FRAME_STEP);
+        camera.forward(- cameraMoveSpeed);
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
         // camera right
-        camera.strafe(CAMERA_PAN_FRAME_STEP);
+        camera.strafe(cameraMoveSpeed);
     }
     if (glfwGetKey(window, GLFW_KEY_A)) {
         // camera left
-        camera.strafe(- CAMERA_PAN_FRAME_STEP);
+        camera.strafe(- cameraMoveSpeed);
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE)) {
         // camera up
-        camera.ascend(CAMERA_PAN_FRAME_STEP);
+        camera.ascend(cameraMoveSpeed);
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_ALT)) {
         // camera down
-        camera.ascend(- CAMERA_PAN_FRAME_STEP);
+        camera.ascend(- cameraMoveSpeed);
     }
     if (highlighted != NO_HIGHLIGHTED) {
         if (glfwGetKey(window, GLFW_KEY_I)) {
@@ -483,7 +598,7 @@ void myProgramInit(Program& program, unsigned i, float time) {
                                        objects[i].model_initial_translateY + objects[i].translateY,
                                        objects[i].model_initial_translateZ + objects[i].translateZ);
     glUniform3f(program.uniform("RO"), objects[i].rotateX, objects[i].rotateY, objects[i].rotateZ);
-    glUniform1f(program.uniform("SC"), objects[i].model_initial_scale * objects[i].collision_radius);
+    glUniform1f(program.uniform("SC"), objects[i].collision_radius / meshes[objects[i].model].maxRadius);
     glUniform3f(program.uniform("barycenter"), meshes[objects[i].model].barycenterX, 
                 meshes[objects[i].model].barycenterY, meshes[objects[i].model].barycenterZ);
 
@@ -508,6 +623,20 @@ void myProgramInit(Program& program, unsigned i, float time) {
         glUniformMatrix4fv(program.uniform("M_projection"), 1, GL_FALSE, camera.M_perspective.data());
     else 
         glUniformMatrix4fv(program.uniform("M_projection"), 1, GL_FALSE, camera.M_orthographic.data());
+}
+
+// Update the object on hand (stored as the last one in objects)
+void updateHand() {
+    Vector3f handPosition;
+    handPosition = camera.position + camera.lookDirection
+                   + camera.lookDirection.cross(camera.upDirection).normalized()
+                   - camera.lookDirection.cross(camera.upDirection).cross(camera.lookDirection).normalized();
+    objects.back().translateX = handPosition.x();
+    objects.back().translateY = handPosition.y();
+    objects.back().translateZ = handPosition.z();
+    objects.back().translateX_last = objects.back().translateX;
+    objects.back().translateY_last = objects.back().translateY;
+    objects.back().translateZ_last = objects.back().translateZ;
 }
 
 int main(void)
@@ -564,9 +693,10 @@ int main(void)
 
     // Register the keyboard callback
     glfwSetKeyCallback(window, key_callback);
-    // Register the mouse callback
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    // Register the mouse callbacks
     glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // Initialize the VAO
     // A Vertex Array Object (or VAO) is an object that describes how the vertex
@@ -641,7 +771,16 @@ int main(void)
     // unlimited mouse movement for camera
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Save the current time --- it will be used to dynamically change the triangle color
+    // Add static objects that does not participate in physics simulation
+    objects.push_back(Object(3));    // This is a reference sphere for easy orienting
+    objects[0].shading = WIREFRAME;
+    objects[0].wireframe = true;
+    objects[0].collision_radius = 100.0;
+
+    // Add object on the hand
+    objects.push_back(Object(3));
+
+    // Save the current time
     auto t_start = std::chrono::high_resolution_clock::now();
 
     // Loop until the user closes the window
@@ -708,7 +847,17 @@ int main(void)
         testKeyStates(window); // for testing key state (holding keys)
 
         // Calculate physics
-        physics();
+        physics(1, objects.size() - 1);
+
+        // Update the object on the hand
+        updateHand();
+
+        // Currently, rotation is not incorporated in physics. Here I just add a hardcoded rotation for a better looking.
+        for (unsigned i = 1; i < objects.size(); ++i) {
+            double temp = objects[i].rotateY;
+            objects[i].rotateY = objects[i].rotateY * 2 - objects[i].rotateY_last;
+            objects[i].rotateY_last = temp;
+        }
     }
 
     // Deallocate opengl memory

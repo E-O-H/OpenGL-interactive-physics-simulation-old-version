@@ -23,3 +23,8 @@ using Eigen::Matrix4f;
 
 #define RESOLUTION_X 1080
 #define RESOLUTION_Y 1080
+
+template <typename T>
+inline T square(T a) {
+    return a * a;
+}

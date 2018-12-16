@@ -36,9 +36,11 @@ public:
     vector<Point> FN;   // List of face normals
 
     vector<Point2d> texCorrds; // List of vertex texture coords
-    unsigned texture = -1;     // texture data ID; -1 stands for no texture
+    unsigned texture = -1;     // Texture data ID; -1 stands for no texture
 
     float barycenterX, barycenterY, barycenterZ;
+    float maxRadius; // The maximum distance from a vertex to barycenter;
+                     // i.e. radius of a containing sphere centered on barycenter
 
     Mesh() {};
 };
@@ -70,8 +72,8 @@ public:
     double rotateX = 0.0, rotateY = 0.0, rotateZ = 0.0;
 
     // attributes used only for physics calculation
-    double translateX_last = 0.0, translateY_last = 0.0, translateZ_last = 0.0; // These are last recorded state
-    double rotateX_last = 0.0, rotateY_last = 0.0, rotateZ_last = 0.0;          // for physics calculation
+    double translateX_last = 0.0, translateY_last = 0.0, translateZ_last = 0.0;         // These are last recorded state
+    double rotateX_last = 0.0, rotateY_last = 0.0, rotateZ_last = 0.0; // for physics calculation
     double collision_radius = 1.0;
     double density = 1.0;          // For calculating mass
     double mass;                   // Derived from density and collision_radius
