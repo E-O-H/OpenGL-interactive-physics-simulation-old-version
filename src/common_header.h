@@ -21,7 +21,7 @@ using Eigen::Matrix4f;
 
 #define PI 3.1415926
 
-#define RESOLUTION_X 1080
+#define RESOLUTION_X 1920
 #define RESOLUTION_Y 1080
 
 template <typename T>

@@ -33,11 +33,11 @@ void Camera::update_view_matrix() {
 
 void Camera::update_projection_matrix() {
     M_orthographic << 1 / ortho_width, 0, 0, 0,
-                      0, 1 / ortho_width * RESOLUTION_Y / RESOLUTION_X, 0, 0,
+                      0, 1 / (ortho_width * RESOLUTION_Y / RESOLUTION_X), 0, 0,
                       0, 0, -2 / (Z_far_limit - Z_near_limit), -(Z_far_limit + Z_near_limit) / (Z_far_limit - Z_near_limit),
                       0, 0, 0, 1;
-    M_perspective << atan(persp_FOVx / 2), 0, 0, 0,
-                     0, atan(persp_FOVx / 2 * RESOLUTION_Y / RESOLUTION_X), 0, 0,
+    M_perspective << 1 / tan(persp_FOVx / 2), 0, 0, 0,
+                     0, 1 / tan(persp_FOVx / 2 * RESOLUTION_Y / RESOLUTION_X), 0, 0,
                      0, 0, -(Z_far_limit + Z_near_limit) / (Z_far_limit - Z_near_limit), -2 * Z_far_limit * Z_near_limit / (Z_far_limit - Z_near_limit),
                      0, 0, -1, 0;
 };
