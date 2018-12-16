@@ -1,11 +1,13 @@
-// This example is heavily based on the tutorial at https://open.gl
-
 // OpenGL Helpers to reduce the clutter
-#include "Helpers.h"
+#include "my_openGL_helpers.h"
+// classes
 #include "camera.h"
+#include "object_class.h"
+// assets file loaders
 #include "OBJ_Loader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+// STL headers
 #include <iostream>
 #include <fstream>
 
@@ -48,6 +50,8 @@ vector<Mesh> meshes;          // list to store all model meshes
 vector<Object> objects;       // list to store all objects in the scene
 
 vector<unsigned> textures;    // list to store texture IDs
+
+void physics();
 
 Camera camera;
 
@@ -280,6 +284,9 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         switch (key) {
+        case GLFW_KEY_GRAVE_ACCENT:
+            objects.clear();
+            break;
         case  GLFW_KEY_1:
             objects.push_back(Object(0));
             break;
@@ -323,7 +330,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
                 objects[highlighted].wireframe = !objects[highlighted].wireframe;
             }
             break;
-        case GLFW_KEY_GRAVE_ACCENT:
+        case GLFW_KEY_BACKSLASH:
             if (highlighted != NO_HIGHLIGHTED) {
                 blinkHighlight = !blinkHighlight;
             }
@@ -418,11 +425,11 @@ void testKeyStates(GLFWwindow *window) {
         }
         if (glfwGetKey(window, GLFW_KEY_O)) {
             // object scale up
-            objects[highlighted].scale *= 1 + SCALE_FRAME_STEP;
+            objects[highlighted].collision_radius *= 1 + SCALE_FRAME_STEP;
         }
         if (glfwGetKey(window, GLFW_KEY_P)) {
             // object scale down
-            objects[highlighted].scale *= 1 - SCALE_FRAME_STEP;
+            objects[highlighted].collision_radius *= 1 - SCALE_FRAME_STEP;
         }
         if (glfwGetKey(window, GLFW_KEY_SLASH)) {
             // object rotate X 
@@ -472,9 +479,11 @@ void myProgramInit(Program& program, unsigned i, float time) {
                                             // not GL_TEXTURE0 (which is not 0)!
 
     // Set the transformation parameters for the object
-    glUniform3f(program.uniform("TR"), objects[i].translateX, objects[i].translateY, objects[i].translateZ);
+    glUniform3f(program.uniform("TR"), objects[i].model_initial_translateX + objects[i].translateX,
+                                       objects[i].model_initial_translateY + objects[i].translateY,
+                                       objects[i].model_initial_translateZ + objects[i].translateZ);
     glUniform3f(program.uniform("RO"), objects[i].rotateX, objects[i].rotateY, objects[i].rotateZ);
-    glUniform1f(program.uniform("SC"), objects[i].scale);
+    glUniform1f(program.uniform("SC"), objects[i].model_initial_scale * objects[i].collision_radius);
     glUniform3f(program.uniform("barycenter"), meshes[objects[i].model].barycenterX, 
                 meshes[objects[i].model].barycenterY, meshes[objects[i].model].barycenterZ);
 
@@ -697,6 +706,9 @@ int main(void)
         // Poll for and process events
         glfwPollEvents();      // for keyPress and keyRelease events
         testKeyStates(window); // for testing key state (holding keys)
+
+        // Calculate physics
+        physics();
     }
 
     // Deallocate opengl memory

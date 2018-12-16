@@ -15,6 +15,7 @@ using std::sin;
 using std::cos;
 using std::atan;
 using Eigen::Vector3f;
+using Eigen::Vector3d;
 using Eigen::Vector4f;
 using Eigen::Matrix4f;
 

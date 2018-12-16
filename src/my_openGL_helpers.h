@@ -2,6 +2,7 @@
 #define HELPERS_H
 
 #include "common_header.h"
+#include "object_class.h"
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -24,69 +25,6 @@
 #   endif
 #   include <GL/gl.h>
 #endif
-
-class Mesh;
-class Object;
-extern vector<Mesh> meshes;          // list to store all model meshes
-extern vector<Object> objects;       // list to store all objects in the scene
-
-enum shading_t {
-    WIREFRAME,
-    FLAT,
-    PHONG,
-    DEBUG_NORMAL
-};
-
-struct Point {
-    float x, y, z;
-};
-
-struct Point2d {
-    float u, v;
-};
-
-struct Face {
-    unsigned a, b, c;
-};
-
-// Class to represent a model mesh
-class Mesh {
-public:
-    vector<Point> V;   // List of vertices
-    vector<Face>  F;   // List of faces
-
-    vector<Point> VN;   // List of vertex normals
-    vector<Point> FN;   // List of face normals
-    
-    vector<Point2d> texCorrds; // List of vertex texture coords
-    unsigned texture = -1;     // texture data ID; -1 stands for no texture
-
-    float barycenterX, barycenterY, barycenterZ;
-
-    Mesh() {};
-};
-
-// Class to represent an object
-class Object {
-public:
-    unsigned model;
-
-    shading_t shading = PHONG;
-    bool wireframe = false;
-    unsigned int colorR = 255;
-    unsigned int colorG = 255;
-    unsigned int colorB = 255;
-    float alpha = 1;
-    float diffuse = 0.8;
-    float specular = 300;
-    int phongExp = 25;
-
-    float translateX = 0, translateY = 0, translateZ = 0;
-    float rotateX = 0, rotateY = 0, rotateZ = 0;
-    float scale = 1;
-
-    Object(unsigned _model = 0);
-};
 
 class VertexArrayObject
 {

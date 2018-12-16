@@ -1,26 +1,7 @@
-#include "Helpers.h"
+#include "my_openGL_helpers.h"
 
 #include <iostream>
 #include <fstream>
-
-Object::Object(unsigned _model) : model(_model) {
-    translateX = -meshes[_model].barycenterX;
-    translateY = -meshes[_model].barycenterY;
-    translateZ = -meshes[_model].barycenterZ;
-    switch (_model) {
-    case 0:
-        scale = 1.0;
-        break;
-    case 1:
-        scale = 0.2;
-        break;
-    case 2:
-        scale = 10.0;
-        break;
-    default:
-        break;
-    }
-}
 
 void VertexArrayObject::init()
 {

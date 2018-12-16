@@ -9,7 +9,7 @@
 #define DEFAULT_CAMERA_PITCH 0.0
 
 #define DEFAULT_ORTHO_WIDTH  2.0
-#define DEFAULT_PERSP_FOVX   PI / 3
+#define DEFAULT_PERSP_FOVX   PI / 2
 
 // Class to represent camera
 class Camera {
