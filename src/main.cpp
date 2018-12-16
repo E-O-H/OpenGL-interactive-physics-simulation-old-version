@@ -434,8 +434,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             if (!objects.empty()) {
                 if (highlighted == NO_HIGHLIGHTED) {
                     objects.back().collision_radius *= 1.2;
+                    objects.back().updateMass();
                 } else {
                     objects[highlighted].collision_radius *= 1.2;
+                    objects[highlighted].updateMass();
                 }
             }
             break;
@@ -443,8 +445,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             if (!objects.empty()) {
                 if (highlighted == NO_HIGHLIGHTED) {
                     objects.back().collision_radius /= 1.2;
+                    objects.back().updateMass();
                 } else {
                     objects[highlighted].collision_radius /= 1.2;
+                    objects[highlighted].updateMass();
                 }
             }
             break;
@@ -452,8 +456,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             if (!objects.empty()) {
                 if (highlighted == NO_HIGHLIGHTED) {
                     objects.back().density *= 1.2;
+                    objects.back().updateMass();
                 } else {
                     objects[highlighted].density *= 1.2;
+                    objects[highlighted].updateMass();
                 }
             }
             break;
@@ -461,8 +467,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             if (!objects.empty()) {
                 if (highlighted == NO_HIGHLIGHTED) {
                     objects.back().density /= 1.2;
+                    objects.back().updateMass();
                 } else {
                     objects[highlighted].density /= 1.2;
+                    objects[highlighted].updateMass();
                 }
             }
             break;
@@ -661,7 +669,8 @@ int main(void)
 #endif
 
     // Create a windowed mode window and its OpenGL context
-    window = glfwCreateWindow(RESOLUTION_X, RESOLUTION_Y, "3D physics simulation", NULL, NULL);
+    window = glfwCreateWindow(RESOLUTION_X, RESOLUTION_Y, "3D physics simulation", 
+                              glfwGetPrimaryMonitor(), NULL);
     if (!window)
     {
         glfwTerminate();
