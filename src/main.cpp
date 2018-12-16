@@ -322,7 +322,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     }
     if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS) {
         // Stop rotation of current object in hand.
+        // Also reset launch speed to 0.
         objects.back().rotateY_last = objects.back().rotateY;
+        launchSpeed = 0.0;
     }
 }
 
