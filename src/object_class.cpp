@@ -52,5 +52,5 @@ Object::Object(unsigned _model) : model(_model) {
 }
 
 void Object::updateMass() {
-    mass = collision_radius * collision_radius * collision_radius * 4.0 / 3.0 * PI;
+    mass = collision_radius * collision_radius * collision_radius * 4.0 / 3.0 * PI * density;
 }
