@@ -26,10 +26,10 @@ Key bindings
 “f”: make object in hand (or selected object) smaller. This will decrease the mass while preserving the density.
 “t”: make object in hand (or selected object) denser. This will increase the mass while preserving the size.
 “g”: make object in hand (or selected object) less dense. This will decrease the mass while preserving the size.
-“&ltF1&gt>”: change the object in hand (or the currently selected object in scene) to wireframe mode
-“&ltF2&gt>”: change the object in hand (or the currently selected object in scene) to flat mode
-“&ltF3&gt>”: change the object in hand (or the currently selected object in scene) to smooth mode
-“&ltF4&gt>”: change the object in hand (or the currently selected object in scene) to normal-vector display mode
+“&ltF1&gt”: change the object in hand (or the currently selected object in scene) to wireframe mode
+“&ltF2&gt”: change the object in hand (or the currently selected object in scene) to flat mode
+“&ltF3&gt”: change the object in hand (or the currently selected object in scene) to smooth mode
+“&ltF4&gt”: change the object in hand (or the currently selected object in scene) to normal-vector display mode
 “1”: change the current object in hand to a unit cube
 “2”: change the current object in hand to a bumpy cube
 “3”: change the current object in hand to a bunny
