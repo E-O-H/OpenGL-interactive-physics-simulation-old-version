@@ -6,6 +6,8 @@ User can navigate the scene with a FPS-style control with keyboard and mouse. Us
 There are also premade object formation examples that can be dynamically loaded and added to the scene (by pressing a number key in 6~0 and F5~F8; it is recommended to press “`” to clear the scene first; 6, F5 and F6 are the most recommended examples; you can also write your own example files and put them in the “data/examples” folder.
 For more features and controls see the key bindings section below.
 The program should be pretty stable, but if you ever encounter a case where you cannot add new objects, it is likely due to there are objects in the scene that has infinite properties (putting two objects at the exact same place would cause this to happen); in this case simply press “`” (the first key on the number row) to delete all objects in the simulation to reset the scene. Also, please avoid putting too many objects in the scene. Since this is a simulation that has gravity between every pair of objects (instead of a single gravity like the usual physics simulation in video games), the complexity is O(n2).
+
+
 Key bindings
 “<esc>”: exit program
 “`”: Delete all objects in the simulation and reset the scene
