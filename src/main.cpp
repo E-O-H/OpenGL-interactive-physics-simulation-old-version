@@ -30,9 +30,9 @@
 
 #define CAMERA_PAN_FRAME_STEP    5E-2
 #define CAMERA_ZOOM_FRAME_STEP   3E-3
-#define TRANSLATE_FRAME_STEP     1E-2
+#define TRANSLATE_FRAME_STEP     5E-3
 #define ROTATE_FRAME_STEP        3E-3
-#define SCALE_FRAME_STEP         3E-3
+#define SCALE_FRAME_STEP         2E-2
 
 #define LAUNCH_SPEED_CHANGE_STEP 1E-2
 #define LAUNCH_SPEED_THREASHOLD  1E-1
@@ -291,8 +291,9 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
 
     float yaw, pitch;
     yaw = xpos / double(width) * PI * MOUSE_SENSITIVITY;
-    pitch = (int(height - 1 - ypos) % height / double(height) - 0.5) // NOTE: y axis is flipped in glfw
-            * PI * MOUSE_SENSITIVITY;                                // Radian value is restricted within (-PI/2, PI/2)
+    pitch = (positiveMod(int(height - 1 - ypos), height) / double(height) - 0.5) 
+            * PI * MOUSE_SENSITIVITY;                // Restrain Radian value within (-PI/2, PI/2)
+                                                     // also note y axis is flipped in glfw
     camera.look(yaw, pitch);
 }
 
@@ -334,6 +335,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_GRAVE_ACCENT:
             // delete all objects in scene (that is, in physics simulation)
             objects.erase(objects.begin() + 1, objects.end() - 1);
+            highlighted = NO_HIGHLIGHTED;
             break;
         case  GLFW_KEY_1:
             objects.back() = Object(0);
@@ -430,28 +432,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         case GLFW_KEY_KP_SUBTRACT:
             cameraMoveSpeed *= 0.5;
             break;
-        case GLFW_KEY_R:
-            if (!objects.empty()) {
-                if (highlighted == NO_HIGHLIGHTED) {
-                    objects.back().collision_radius *= 1.2;
-                    objects.back().updateMass();
-                } else {
-                    objects[highlighted].collision_radius *= 1.2;
-                    objects[highlighted].updateMass();
-                }
-            }
-            break;
-        case GLFW_KEY_F:
-            if (!objects.empty()) {
-                if (highlighted == NO_HIGHLIGHTED) {
-                    objects.back().collision_radius /= 1.2;
-                    objects.back().updateMass();
-                } else {
-                    objects[highlighted].collision_radius /= 1.2;
-                    objects[highlighted].updateMass();
-                }
-            }
-            break;
         case GLFW_KEY_T:
             if (!objects.empty()) {
                 if (highlighted == NO_HIGHLIGHTED) {
@@ -521,6 +501,30 @@ void testKeyStates(GLFWwindow *window) {
         // camera down
         camera.ascend(- cameraMoveSpeed);
     }
+    if (glfwGetKey(window, GLFW_KEY_R)) {
+        // object scale up
+        if (!objects.empty()) {
+            if (highlighted == NO_HIGHLIGHTED) {
+                objects.back().collision_radius *= 1 + SCALE_FRAME_STEP;
+                objects.back().updateMass();
+            } else {
+                objects[highlighted].collision_radius *= 1 + SCALE_FRAME_STEP;
+                objects[highlighted].updateMass();
+            }
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_F)) {
+        // object scale down
+        if (!objects.empty()) {
+            if (highlighted == NO_HIGHLIGHTED) {
+                objects.back().collision_radius /= 1 + SCALE_FRAME_STEP;
+                objects.back().updateMass();
+            } else {
+                objects[highlighted].collision_radius /= 1 + SCALE_FRAME_STEP;
+                objects[highlighted].updateMass();
+            }
+        }
+    }
     if (highlighted != NO_HIGHLIGHTED) {
         if (glfwGetKey(window, GLFW_KEY_I)) {
             // object translate backward
@@ -549,10 +553,12 @@ void testKeyStates(GLFWwindow *window) {
         if (glfwGetKey(window, GLFW_KEY_O)) {
             // object scale up
             objects[highlighted].collision_radius *= 1 + SCALE_FRAME_STEP;
+            objects[highlighted].updateMass();
         }
         if (glfwGetKey(window, GLFW_KEY_P)) {
             // object scale down
-            objects[highlighted].collision_radius *= 1 - SCALE_FRAME_STEP;
+            objects[highlighted].collision_radius /= 1 + SCALE_FRAME_STEP;
+            objects[highlighted].updateMass();
         }
         if (glfwGetKey(window, GLFW_KEY_SLASH)) {
             // object rotate X 
@@ -616,7 +622,7 @@ void myProgramInit(Program& program, unsigned i, float time) {
     glUniform1f(program.uniform("specular_coef"), objects[i].specular);
     glUniform1f(program.uniform("phongExp"), objects[i].phongExp);
     if (i == highlighted) {
-        if (blinkHighlight) glUniform3f(program.uniform("color"), 0.7f, 0.7f, (sin(time * 8.0f) + 1.0f) / 2.0f);
+        if (blinkHighlight) glUniform3f(program.uniform("color"), 0.5f, 0.5f, (sin(time * 8.0f) + 1.0f) / 2.0f);
         else glUniform3f(program.uniform("color"), 0.7f, 0.7f, 0.0f);
     } else {
         glUniform3f(program.uniform("color"), DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B);

@@ -28,3 +28,8 @@ template <typename T>
 inline T square(T a) {
     return a * a;
 }
+
+template <typename T>
+inline T positiveMod(T a, T b) {
+    return (a % b + b) % b;
+}
