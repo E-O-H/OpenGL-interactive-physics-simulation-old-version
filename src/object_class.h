@@ -75,7 +75,7 @@ public:
     double translateX_last = 0.0, translateY_last = 0.0, translateZ_last = 0.0;         // These are last recorded state
     double rotateX_last = 0.0, rotateY_last = 0.0, rotateZ_last = 0.0; // for physics calculation
     double collision_radius = 1.0;
-    double density = 1.0;          // For calculating mass
+    double density = 10.0;          // For calculating mass
     double mass;                   // Derived from density and collision_radius
     bool COLLISION = false; // To check if the object is already in a collision (so it is not deemed as a new collision)
                             // Note since there is only one collision flag, 

@@ -18,32 +18,35 @@
 // Timer
 #include <chrono>
 
-#define BACKGROUND_R 0.0
-#define BACKGROUND_G 0.0
-#define BACKGROUND_B 0.0
+#define BACKGROUND_R 0.0                 // background color R
+#define BACKGROUND_G 0.0                 // background color G
+#define BACKGROUND_B 0.0                 // background color B
 
-#define DEFAULT_COLOR_R 1.0
-#define DEFAULT_COLOR_G 1.0
-#define DEFAULT_COLOR_B 1.0
+#define DEFAULT_COLOR_R 1.0              // default color multiplier R
+#define DEFAULT_COLOR_G 1.0              // default color multiplier R
+#define DEFAULT_COLOR_B 1.0              // default color multiplier R
 
-#define AMBIENT_COEF    0.3
+#define AMBIENT_COEF    0.3              // ambient coefficient multiplier
 
-#define CAMERA_PAN_FRAME_STEP    5E-2
-#define CAMERA_ZOOM_FRAME_STEP   3E-3
-#define TRANSLATE_FRAME_STEP     5E-3
-#define ROTATE_FRAME_STEP        3E-3
-#define SCALE_FRAME_STEP         2E-2
+#define CAMERA_PAN_FRAME_STEP    1E-1    // default camera move speed
+#define CAMERA_ZOOM_FRAME_STEP   3E-3    // default camera zoom speed (not used)
+#define TRANSLATE_FRAME_STEP     5E-3    // object manipulation speed: translate
+#define ROTATE_FRAME_STEP        3E-3    // object manipulation speed: rotate
+#define SCALE_FRAME_STEP         2E-2    // object manipulation speed: scale
 
-#define LAUNCH_SPEED_CHANGE_STEP 1E-2
-#define LAUNCH_SPEED_THREASHOLD  1E-1
+#define LAUNCH_SPEED_CHANGE_STEP 1E-2    // hand object launch speed adjustment speed
+#define LAUNCH_SPEED_THREASHOLD  1E-1    // hand object launch speed adjustment threashold
 
-#define MOUSE_SENSITIVITY        1.0
+#define MOUSE_SENSITIVITY        1.0     // mouse sensitivity
 
-const string dataPath = "./data/";  // path for data files
+#define HAND_POSITION_X          1.0     // "hand" position on screen X
+#define HAND_POSITION_Y          -0.7    // "hand" position on screen Y
+
+const string dataPath = "./data/";       // path for data files
 
 #define NO_HIGHLIGHTED -1
 
-// VertexBufferObject wrappers
+// VertexBufferObject wrappers; corresponds to meshes
 vector<VertexBufferObject> VBO;     // vertex coords
 vector<VertexBufferObject> VBO_N;   // vertex normals
 vector<VertexBufferObject> VBO_T;   // vertex texture coords
@@ -68,6 +71,8 @@ bool blinkHighlight = true;
 
 float cameraMoveSpeed = CAMERA_PAN_FRAME_STEP;  // The initial movement speed
 float launchSpeed = 0.0;                        // The initial object launch speed
+
+int loadPremadeScene(string sceneFilename);
 
 // Function to read a ".off" mesh data file
 int readMesh(string filename, vector<Mesh>& meshes) {
@@ -337,20 +342,47 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             objects.erase(objects.begin() + 1, objects.end() - 1);
             highlighted = NO_HIGHLIGHTED;
             break;
-        case  GLFW_KEY_1:
+        case GLFW_KEY_1:
             objects.back() = Object(0);
             break;
         case GLFW_KEY_2:
             objects.back() = Object(1);
             break;
-        case  GLFW_KEY_3:
+        case GLFW_KEY_3:
             objects.back() = Object(2);
             break;
-        case  GLFW_KEY_4:
+        case GLFW_KEY_4:
             objects.back() = Object(3);
             break;
-        case  GLFW_KEY_5:
+        case GLFW_KEY_5:
             objects.back() = Object(4);
+            break;
+        case GLFW_KEY_6:
+            loadPremadeScene("example_0.txt");
+            break;
+        case GLFW_KEY_7:
+            loadPremadeScene("example_1.txt");
+            break;
+        case GLFW_KEY_8:
+            loadPremadeScene("example_2.txt");
+            break;
+        case GLFW_KEY_9:
+            loadPremadeScene("example_3.txt");
+            break;
+        case GLFW_KEY_0:
+            loadPremadeScene("example_4.txt");
+            break;
+        case GLFW_KEY_F5:
+            loadPremadeScene("example_5.txt");
+            break;
+        case GLFW_KEY_F6:
+            loadPremadeScene("example_6.txt");
+            break;
+        case GLFW_KEY_F7:
+            loadPremadeScene("example_7.txt");
+            break;
+        case GLFW_KEY_F8:
+            loadPremadeScene("example_8.txt");
             break;
         case GLFW_KEY_F1:
             if (!objects.empty()) {
@@ -409,6 +441,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             }
             break;
         case GLFW_KEY_BACKSPACE:
+        case GLFW_KEY_Z:
             highlighted = NO_HIGHLIGHTED;
             break;
         case GLFW_KEY_ENTER:
@@ -588,7 +621,7 @@ void testKeyStates(GLFWwindow *window) {
 }
 
 // Prepare a render program to use
-void myProgramInit(Program& program, unsigned i, float time) {
+void sceneRenderProgramInit(Program& program, unsigned i, float time) {
     // specify program to use
     program.bind();
     // The vertex shader wants the position of the vertices as an input.
@@ -639,12 +672,61 @@ void myProgramInit(Program& program, unsigned i, float time) {
         glUniformMatrix4fv(program.uniform("M_projection"), 1, GL_FALSE, camera.M_orthographic.data());
 }
 
+void HUDRenderProgramInit(Program& program, const Object& object) {
+    // specify program to use
+    program.bind();
+    // The vertex shader wants the position of the vertices as an input.
+    // The following line connects the VBO we defined above with the position "slot"
+    // in the vertex shader
+    program.bindVertexAttribArray("position_m",VBO[object.model]);
+    program.bindVertexAttribArray("normal_m",VBO_N[object.model]);
+    program.bindVertexAttribArray("texCoords",VBO_T[object.model]);
+
+    EBO[object.model].bind();
+
+    // Set textures to use in texture units
+    glActiveTexture(GL_TEXTURE0);           // GL_TEXTURE0 denotes the default texture unit
+    glBindTexture(GL_TEXTURE_2D, textures[meshes[object.model].texture]);
+    // Bind texture units to samplers
+    glUniform1i(program.uniform("tex"), 0); // note to self: the parameter to bind to the sampler uniform is 0,
+                                            // not GL_TEXTURE0 (which is not 0)!
+
+                                            // Set the transformation parameters for the object
+    glUniform3f(program.uniform("TR"), object.model_initial_translateX + object.translateX,
+                object.model_initial_translateY + object.translateY,
+                object.model_initial_translateZ + object.translateZ);
+    glUniform3f(program.uniform("RO"), object.rotateX, object.rotateY, object.rotateZ);
+    glUniform1f(program.uniform("SC"), object.collision_radius / meshes[object.model].maxRadius);
+    glUniform3f(program.uniform("barycenter"), meshes[object.model].barycenterX, 
+                meshes[object.model].barycenterY, meshes[object.model].barycenterZ);
+
+    // Set the rendering parameters for the object
+    glUniform1f(program.uniform("ambient_coef"), AMBIENT_COEF);
+    glUniform1f(program.uniform("diffuse_coef"), object.diffuse);
+    glUniform1f(program.uniform("specular_coef"), object.specular);
+    glUniform1f(program.uniform("phongExp"), object.phongExp);
+    
+    glUniform3f(program.uniform("color"), DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B);
+
+    // Set camera parameters 
+    // (usually HUD shaders don't use camera parameters, but I still pass them just in case I want to use them)
+    glUniform3f(program.uniform("camera_pos"), 
+                camera.position.x(), camera.position.y(), camera.position.z());
+    // Set camera view and projection matrices
+    glUniformMatrix4fv(program.uniform("M_view"), 1, GL_FALSE, camera.M_view.data());
+    if (camera.perspective)
+        glUniformMatrix4fv(program.uniform("M_projection"), 1, GL_FALSE, camera.M_perspective.data());
+    else 
+        glUniformMatrix4fv(program.uniform("M_projection"), 1, GL_FALSE, camera.M_orthographic.data());
+}
+
+
 // Update the object on hand (stored as the last one in objects)
 void updateHand() {
     Vector3f handPosition;
     handPosition = camera.position + camera.lookDirection
-                   + camera.lookDirection.cross(camera.upDirection).normalized()
-                   - camera.lookDirection.cross(camera.upDirection).cross(camera.lookDirection).normalized();
+                   + HAND_POSITION_X * camera.lookDirection.cross(camera.upDirection).normalized()
+                   + HAND_POSITION_Y * camera.lookDirection.cross(camera.upDirection).cross(camera.lookDirection).normalized();
     objects.back().translateX = handPosition.x();
     objects.back().translateY = handPosition.y();
     objects.back().translateZ = handPosition.z();
@@ -729,11 +811,15 @@ int main(void)
 
     // read models from .obj files (as well as their texture pictures)
     readObj("Earth.obj", meshes);
-    //readObj("fancy_sphere_1_reduced.obj", meshes);
+    readObj("fancy_sphere_1_reduced.obj", meshes);
+    readObj("arrow.obj", meshes);
+    readObj("Earth.obj", meshes);
 
     // read textures
     readTexture("Earth.png", meshes[3]);
-    //readTexture("one_pixel_0_0.5_1.bmp", meshes[4]);
+    readTexture("one_pixel_0_0.5_1.bmp", meshes[4]);
+    readTexture("one_pixel_1_0.5_0.bmp", meshes[5]);
+    readTexture("one_pixel_1_1_1.bmp", meshes[6]);
     readTexture("one_pixel_0_0.5_1.bmp", meshes[0]);
     readTexture("one_pixel_0_0.5_1.bmp", meshes[1]);
     readTexture("one_pixel_0_0.5_1.bmp", meshes[2]);
@@ -757,6 +843,7 @@ int main(void)
     
     // declare shaders
     extern const GLchar *vertex_shader,
+                        *vertex_shader_HUD,
                         *fragment_shader_flat,
                         *fragment_shader_phong,
                         *fragment_shader_debug_normal,
@@ -767,7 +854,8 @@ int main(void)
     Program program_flat,
             program_phong, 
             program_rawColor, 
-            program_debug_normal;
+            program_debug_normal,
+            program_HUD;
     // Compile the shaders and upload the binary to the GPU
     // Note that we have to explicitly specify that the output "slot" called outColor
     // is the one that we want in the fragment buffer (and thus on screen)
@@ -775,6 +863,7 @@ int main(void)
     program_phong.init(vertex_shader,fragment_shader_phong,"outColor");
     program_rawColor.init(vertex_shader,fragment_shader_rawColor,"outColor");
     program_debug_normal.init(vertex_shader,fragment_shader_debug_normal,"outColor");
+    program_HUD.init(vertex_shader_HUD,fragment_shader_debug_normal,"outColor");
 
     // enable z-buffer
     glEnable(GL_DEPTH_TEST);
@@ -794,6 +883,12 @@ int main(void)
 
     // Add object on the hand
     objects.push_back(Object(3));
+
+    // Add HUD indicator speed arrow
+    Object speedArrow(5);
+    speedArrow.rotateX = -PI / 2;
+    speedArrow.translateX = HAND_POSITION_X;
+    speedArrow.translateY = HAND_POSITION_Y;
 
     // Save the current time
     auto t_start = std::chrono::high_resolution_clock::now();
@@ -820,15 +915,15 @@ int main(void)
                 drawTriangle = false;
                 break;
             case FLAT:
-                myProgramInit(program_flat, i, time);
+                sceneRenderProgramInit(program_flat, i, time);
                 drawTriangle = true;
                 break;
             case PHONG:
-                myProgramInit(program_phong, i, time);
+                sceneRenderProgramInit(program_phong, i, time);
                 drawTriangle = true;
                 break;
             case DEBUG_NORMAL:
-                myProgramInit(program_debug_normal, i, time);
+                sceneRenderProgramInit(program_debug_normal, i, time);
                 drawTriangle = true;
                 break;
             default:
@@ -843,7 +938,7 @@ int main(void)
             }
             // Draw a wireframe
             if (objects[i].wireframe) {
-                myProgramInit(program_rawColor, i, time);
+                sceneRenderProgramInit(program_rawColor, i, time);
                 glUniform3f(program_rawColor.uniform("color"), 1.0, 1.0, 1.0);
                 for (unsigned j = 0; j < EBO[objects[i].model].cols; ++j) {
                     glDrawElements(GL_LINE_STRIP,
@@ -853,6 +948,13 @@ int main(void)
                 }
             }
         }
+
+        // Draw HUD
+        HUDRenderProgramInit(program_HUD, speedArrow);
+        glDrawElements(GL_TRIANGLES,
+                       EBO[speedArrow.model].rows * EBO[speedArrow.model].cols,
+                       GL_UNSIGNED_INT,
+                       0);
 
         // Swap front and back buffers
         glfwSwapBuffers(window);
@@ -867,6 +969,9 @@ int main(void)
         // Update the object on the hand
         updateHand();
 
+        // Update HUD speed arrow
+        speedArrow.collision_radius = launchSpeed / LAUNCH_SPEED_CHANGE_STEP;
+
         // Currently, rotation is not incorporated in physics. Here I just add a hardcoded rotation for a better looking.
         for (unsigned i = 1; i < objects.size(); ++i) {
             double temp = objects[i].rotateY;
@@ -880,6 +985,7 @@ int main(void)
     program_phong.free();
     program_rawColor.free();
     program_debug_normal.free();
+    program_HUD.free();
     VAO.free();
     for (unsigned i = 0; i < VBO.size(); ++i) {
         VBO[i].free();

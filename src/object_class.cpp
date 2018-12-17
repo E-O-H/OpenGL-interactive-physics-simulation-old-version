@@ -16,7 +16,12 @@ Object::Object(unsigned _model) : model(_model) {
         model_initial_scale = 10.0;
         break;
     case 3:
-        model_initial_scale = 0.5;
+        model_initial_scale = 0.25;
+        break;
+    case 4:
+        break;
+    case 5:
+        model_initial_scale = 1.0;
         break;
     default:
         break;
