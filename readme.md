@@ -1,4 +1,4 @@
-# OpenGL-interactive-physics-simulation [![Build Status](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation.svg?branch=master)](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation)
+# OpenGL-interactive-physics-simulation [![Build Status](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation-old-version.svg?branch=master)](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation-old-version)
 <pre>
 Introduction
 The project is a physics simulation that has Newtonian gravity between all pairs of objects, as well as elastic collision for spheres (only one-on-one collision is currently supported; if an object collides with more than two other objects at the exact same frame, the calculation would not be correct; you should also not put two objects at the same place; if the model is not a sphere, the collision calculation uses the smallest bounding sphere).
