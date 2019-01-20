@@ -70,7 +70,7 @@ int highlighted = NO_HIGHLIGHTED;
 bool blinkHighlight = true;
 
 float cameraMoveSpeed = CAMERA_PAN_FRAME_STEP;  // The initial movement speed
-float launchSpeed = 0.0;                        // The initial object launch speed
+float launchSpeed = 1E-1;                        // The initial object launch speed
 
 int loadPremadeScene(string sceneFilename);
 
@@ -318,14 +318,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
         if (launchSpeed < LAUNCH_SPEED_THREASHOLD) {
             launchSpeed += LAUNCH_SPEED_CHANGE_STEP * yoffset;
         } else {
-            launchSpeed *= 1.2 * yoffset;
+            launchSpeed *= pow(1.1, yoffset);
         }
     } else {
         if (launchSpeed < LAUNCH_SPEED_THREASHOLD) {
             launchSpeed -= LAUNCH_SPEED_CHANGE_STEP * -yoffset;
             launchSpeed = std::max(launchSpeed, 0.0f);
         } else {
-            launchSpeed /= 1.2 * -yoffset;
+            launchSpeed /= pow(1.1, -yoffset);
         }
     }
 }
