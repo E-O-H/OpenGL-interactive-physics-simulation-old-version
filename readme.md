@@ -1,4 +1,4 @@
-# Assignment 4: Final Project
+# OpenGL-interactive-physics-simulation [![Build Status](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation.svg?branch=master)](https://travis-ci.com/E-O-H/OpenGL-interactive-physics-simulation)
 <pre>
 Introduction
 The project is a physics simulation that has Newtonian gravity between all pairs of objects, as well as elastic collision for spheres (only one-on-one collision is currently supported; if an object collides with more than two other objects at the exact same frame, the calculation would not be correct; you should also not put two objects at the same place; if the model is not a sphere, the collision calculation uses the smallest bounding sphere).
@@ -11,6 +11,7 @@ The program should be pretty stable, but if you ever encounter a case where you 
 Key bindings
 “&ltesc&gt”: exit program
 “`”: Delete all objects in the simulation and reset the scene
+number keys: add premade demo examples to the scene
 “w”: move forward
 “s”: move backward
 “a”: strafe left
@@ -19,8 +20,8 @@ Key bindings
 “left-alt”: descend
 “=“ or “numpad+“: increase moving speed
 “-” or “numpad-”: decrease moving speed
-“left-mouse-button”: shoot a new object
-“mouse-wheel-scroll”: change the shooting speed (speed change is linear in low speed, and exponential in high speed).
+“left-mouse-button”: shoot a new object into the scene
+“mouse-wheel-scroll”: change the shooting speed (speed change is linear at low speed, and exponential at high speed).
 “middle-mouse-button”: stop the randomized rotation; also reset launch speed to zero
 “r”: make object in hand (or selected object) larger. This will increase the mass while preserving the density.
 “f”: make object in hand (or selected object) smaller. This will decrease the mass while preserving the density.
@@ -30,11 +31,11 @@ Key bindings
 “&ltF2&gt”: change the object in hand (or the currently selected object in scene) to flat mode
 “&ltF3&gt”: change the object in hand (or the currently selected object in scene) to smooth mode
 “&ltF4&gt”: change the object in hand (or the currently selected object in scene) to normal-vector display mode
-“1”: change the current object in hand to a unit cube
-“2”: change the current object in hand to a bumpy cube
-“3”: change the current object in hand to a bunny
-“4”: change the current object in hand to the earth (default and recommended model)
-“5”: change the current object in hand to a fancy skeletal sphere (note this object is actually much larger than it seems and is very massive by default despite the skeletal look; it is intended to function as a “star core”; putting other objects close to it is not recommended)
+“&ltF5&gt”: change the current object in hand to a unit cube
+“&ltF6&gt”: change the current object in hand to a bumpy cube
+“&ltF7&gt”: change the current object in hand to a bunny
+“&ltF8&gt”: change the current object in hand to the earth (default and recommended model)
+“&ltF9&gt”: change the current object in hand to a fancy skeletal sphere (note this object is actually much larger than it seems and is very massive by default despite the skeletal look; it is intended to function as a “star core”; putting other objects close to it is not recommended)
 “e”: enter select mode and select next object (cycle); used for editing objects in the scene
 “q”: enter select mode and select previous object (cycle)
 “backspace” or “z”: cancel selection (editing mode changes back to the object in “hand”)

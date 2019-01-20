@@ -296,9 +296,20 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
 
     float yaw, pitch;
     yaw = xpos / double(width) * PI * MOUSE_SENSITIVITY;
+    /* Old implementation (jumps between the zenith and the nadir)
     pitch = (positiveMod(int(height - 1 - ypos), height) / double(height) - 0.5) 
             * PI * MOUSE_SENSITIVITY;                // Restrain Radian value within (-PI/2, PI/2)
                                                      // also note y axis is flipped in glfw
+    */
+    static float ypos_prev = ypos;
+    float delta = ypos - ypos_prev;
+    ypos_prev = ypos;
+    static float ypos_restricted = 0.0;
+    if (delta > 0 && ypos_restricted + delta < height / 2.0
+        || delta < 0 && ypos_restricted + delta > - height / 2.0) {
+        ypos_restricted += delta;
+    }
+    pitch = - ypos_restricted / height * PI * MOUSE_SENSITIVITY;
     camera.look(yaw, pitch);
 }
 
@@ -343,46 +354,49 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             highlighted = NO_HIGHLIGHTED;
             break;
         case GLFW_KEY_1:
-            objects.back() = Object(0);
-            break;
-        case GLFW_KEY_2:
-            objects.back() = Object(1);
-            break;
-        case GLFW_KEY_3:
-            objects.back() = Object(2);
-            break;
-        case GLFW_KEY_4:
-            objects.back() = Object(3);
-            break;
-        case GLFW_KEY_5:
-            objects.back() = Object(4);
-            break;
-        case GLFW_KEY_6:
             loadPremadeScene("example_0.txt");
             break;
-        case GLFW_KEY_7:
+        case GLFW_KEY_2:
             loadPremadeScene("example_1.txt");
             break;
-        case GLFW_KEY_8:
+        case GLFW_KEY_3:
             loadPremadeScene("example_2.txt");
             break;
-        case GLFW_KEY_9:
+        case GLFW_KEY_4:
             loadPremadeScene("example_3.txt");
             break;
-        case GLFW_KEY_0:
+        case GLFW_KEY_5:
             loadPremadeScene("example_4.txt");
             break;
-        case GLFW_KEY_F5:
+        case GLFW_KEY_6:
             loadPremadeScene("example_5.txt");
             break;
-        case GLFW_KEY_F6:
+        case GLFW_KEY_7:
             loadPremadeScene("example_6.txt");
             break;
-        case GLFW_KEY_F7:
+        case GLFW_KEY_8:
             loadPremadeScene("example_7.txt");
             break;
-        case GLFW_KEY_F8:
+        case GLFW_KEY_9:
             loadPremadeScene("example_8.txt");
+            break;
+        case GLFW_KEY_0:
+            loadPremadeScene("example_9.txt");
+            break;
+        case GLFW_KEY_F5:
+            objects.back() = Object(0);
+            break;
+        case GLFW_KEY_F6:
+            objects.back() = Object(1);
+            break;
+        case GLFW_KEY_F7:
+            objects.back() = Object(2);
+            break;
+        case GLFW_KEY_F8:
+            objects.back() = Object(3);
+            break;
+        case GLFW_KEY_F9:
+            objects.back() = Object(4);
             break;
         case GLFW_KEY_F1:
             if (!objects.empty()) {
